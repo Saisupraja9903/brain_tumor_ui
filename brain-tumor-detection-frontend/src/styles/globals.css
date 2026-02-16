@@ -1,0 +1,57 @@
+html, body, #root {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    font-family: 'Arial', sans-serif;
+}
+
+h1, h2, h3, h4, h5, h6 {
+    margin: 0;
+    padding: 0;
+}
+
+a {
+    text-decoration: none;
+    color: inherit;
+}
+
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+.button {
+    background-color: #007bff;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    padding: 10px 20px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+.button:hover {
+    background-color: #0056b3;
+}
+
+.upload-preview {
+    margin-top: 20px;
+    border: 1px dashed #ccc;
+    padding: 10px;
+    text-align: center;
+}
+
+.result {
+    padding: 20px;
+    border-radius: 5px;
+    color: white;
+}
+
+.result.tumor {
+    background-color: #dc3545; /* Red for Tumor */
+}
+
+.result.no-tumor {
+    background-color: #28a745; /* Green for No Tumor */
+}
