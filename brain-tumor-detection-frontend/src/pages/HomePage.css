@@ -1,1 +1,59 @@
-.home-page{max-width:960px;margin:40px auto;padding:20px;text-align:center}.upload-button{background:#0d6efd;color:#fff;border:none;padding:10px 16px;border-radius:6px;cursor:pointer}.upload-button:hover{opacity:.95}
+/* .home-page{max-width:960px;margin:40px auto;padding:20px;text-align:center}.upload-button{background:#0d6efd;color:#fff;border:none;padding:10px 16px;border-radius:6px;cursor:pointer}.upload-button:hover{opacity:.95} */
+/* Full page background */
+.home-page {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+
+    background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
+    color: #ffffff;
+    padding: 20px;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+/* Title Styling */
+.home-page h1 {
+    font-size: 3rem;
+    margin-bottom: 20px;
+    letter-spacing: 1px;
+    background: linear-gradient(90deg, #00c6ff, #0072ff);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+/* Description Styling */
+.home-page p {
+    max-width: 700px;
+    font-size: 1.2rem;
+    line-height: 1.6;
+    margin-bottom: 40px;
+    color: #dbe9f4;
+}
+
+/* Upload Button */
+.upload-button {
+    padding: 15px 35px;
+    font-size: 1.1rem;
+    font-weight: bold;
+    border: none;
+    border-radius: 30px;
+    cursor: pointer;
+    background: linear-gradient(90deg, #00c6ff, #0072ff);
+    color: white;
+    transition: all 0.3s ease;
+    box-shadow: 0 10px 25px rgba(0, 114, 255, 0.4);
+}
+
+/* Hover Effect */
+.upload-button:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 15px 35px rgba(0, 114, 255, 0.6);
+}
+
+/* Button Click Effect */
+.upload-button:active {
+    transform: scale(0.95);
+}

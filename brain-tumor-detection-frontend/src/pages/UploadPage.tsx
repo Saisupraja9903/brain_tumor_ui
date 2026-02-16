@@ -306,6 +306,54 @@ const UploadPage: React.FC = () => {
                 🔄 Analyze Another Image
               </button>
             </div>
+            {/* ================= Medical Guidance Section ================= */}
+<div className="medical-guidance-section">
+
+  {/* Emergency Warning */}
+  {result.prediction === "tumor" && result.confidence >= 85 && (
+    <div className="emergency-warning">
+      ⚠️ High probability of tumor detected.
+      Immediate consultation with a specialist is strongly recommended.
+    </div>
+  )}
+
+  <h3>Preliminary Medical Guidance</h3>
+
+  {result.prediction === "tumor" ? (
+    <div className="guidance-box tumor-guide">
+      <p><strong>Detected Condition:</strong> Brain Tumor (Preliminary AI Detection)</p>
+      <ul>
+        <li>Consult a Neurologist or Neurosurgeon immediately.</li>
+        <li>Recommended: MRI with contrast, CT scan, or Biopsy (if advised).</li>
+        <li>Early diagnosis improves treatment outcomes.</li>
+        <li>Follow medical supervision strictly.</li>
+      </ul>
+      <p className="hospital-recommendation">
+        Visit a multi-specialty hospital with Neurology or Oncology department.
+      </p>
+    </div>
+  ) : (
+    <div className="guidance-box safe-guide">
+      <p><strong>Status:</strong> No Tumor Detected (AI Based Screening)</p>
+      <ul>
+        <li>No immediate abnormality detected.</li>
+        <li>Maintain regular health monitoring.</li>
+        <li>If symptoms persist, consult a Neurologist.</li>
+      </ul>
+      <p className="hospital-recommendation">
+        Routine hospital consultation is sufficient unless symptoms worsen.
+      </p>
+    </div>
+  )}
+
+  {/* Legal Disclaimer */}
+  <div className="legal-disclaimer">
+    ⚖️ This AI system provides preliminary screening only and is NOT a confirmed medical diagnosis.
+    Please consult a certified medical professional for clinical evaluation.
+  </div>
+
+</div>
+
           </div>
         )}
 

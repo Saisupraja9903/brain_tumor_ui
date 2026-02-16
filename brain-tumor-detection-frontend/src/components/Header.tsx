@@ -14,9 +14,9 @@ const Header: React.FC = () => {
                     <li>
                         <Link to="/upload">Upload MRI Scan</Link>
                     </li>
-                    <li>
+                    {/* <li>
                         <Link to="/results">Results</Link>
-                    </li>
+                    </li> */}
                 </ul>
             </nav>
         </header>

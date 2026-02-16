@@ -1,1 +1,91 @@
-.header{display:flex;justify-content:space-between;align-items:center;padding:12px 20px;background:#0d6efd;color:#fff}.header-title{margin:0;font-size:1.2rem}.header-nav ul{list-style:none;margin:0;padding:0;display:flex;gap:12px}.header-nav a{color:#fff;text-decoration:none}.header-nav a:hover{text-decoration:underline}
+/* .header{display:flex;justify-content:space-between;align-items:center;padding:12px 20px;background:#0d6efd;color:#fff}.header-title{margin:0;font-size:1.2rem}.header-nav ul{list-style:none;margin:0;padding:0;display:flex;gap:12px}.header-nav a{color:#fff;text-decoration:none}.header-nav a:hover{text-decoration:underline} */
+/* ===========================
+   Medical AI Header / Navbar
+   =========================== */
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 18px 40px;
+  background: linear-gradient(90deg, #0f2027, #203a43, #2c5364);
+  backdrop-filter: blur(10px);
+  box-shadow: 0 5px 20px rgba(0, 0, 0, 0.4);
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+}
+
+/* Title */
+.header-title {
+  margin: 0;
+  font-size: 1.4rem;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  background: linear-gradient(90deg, #00c6ff, #0072ff);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Navigation */
+.header-nav ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  gap: 25px;
+}
+
+/* Nav Links */
+.header-nav a {
+  position: relative;
+  text-decoration: none;
+  color: #ffffff;
+  font-weight: 500;
+  font-size: 0.95rem;
+  transition: 0.3s ease;
+  padding: 6px 0;
+}
+
+/* Animated underline effect */
+.header-nav a::after {
+  content: "";
+  position: absolute;
+  width: 0%;
+  height: 2px;
+  bottom: -4px;
+  left: 0;
+  background: #00c6ff;
+  transition: width 0.3s ease;
+}
+
+.header-nav a:hover {
+  color: #00c6ff;
+}
+
+.header-nav a:hover::after {
+  width: 100%;
+}
+
+/* Active link style (optional if using NavLink later) */
+.header-nav a.active {
+  color: #00c6ff;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .header {
+    flex-direction: column;
+    gap: 10px;
+    padding: 15px 20px;
+  }
+
+  .header-nav ul {
+    gap: 15px;
+  }
+
+  .header-title {
+    font-size: 1.1rem;
+    text-align: center;
+  }
+}
