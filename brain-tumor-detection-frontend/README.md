@@ -29,7 +29,7 @@ This is a React.js frontend application for the Brain Tumor Detection System. Th
 
 3. Install the dependencies:
    ```
-   npm install
+   npm installn
    ```
 
 4. Create a `.env` file in the root directory and add the backend API URL:

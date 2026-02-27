@@ -4,6 +4,7 @@ import './UploadPage.css';
 
 interface AnalysisResult extends PredictionResponse {
   duration?: number;
+  stage?: string;
 }
 
 const UploadPage: React.FC = () => {
@@ -68,10 +69,14 @@ const UploadPage: React.FC = () => {
       
       const duration = (Date.now() - startTime) / 1000;
       setAnalysisStep('analyzing');
-      
+
+      // Compute stage only when tumor is predicted (client-side estimate)
+      const stage = response.prediction === 'tumor' ? getCancerStage(response.confidence) : undefined;
+
       setResult({
         ...response,
         duration,
+        stage,
       });
       
       setAnalysisStep('idle');
@@ -108,6 +113,16 @@ const UploadPage: React.FC = () => {
     if (confidence >= 80) return '#dc3545'; // Red for high confidence tumor
     if (confidence >= 60) return '#ffc107'; // Yellow for medium
     return '#28a745'; // Green for low
+  };
+
+  // Derive a simple cancer stage from confidence when a tumor is detected.
+  // This is a client-side heuristic for display only and NOT a medical diagnosis.
+  const getCancerStage = (confidence: number): string => {
+    if (confidence >= 85) return 'Stage IV';
+    if (confidence >= 70) return 'Stage III';
+    if (confidence >= 50) return 'Stage II';
+    if (confidence >= 30) return 'Stage I';
+    return 'Early / Indeterminate';
   };
 
   return (
@@ -237,6 +252,17 @@ const UploadPage: React.FC = () => {
                 </div>
               </div>
 
+              {/* Stage Card (only when tumor detected) */}
+              {result.prediction === 'tumor' && (
+                <div className="result-card stage-card">
+                  <h3>Estimated Cancer Stage</h3>
+                  <div className="stage-result">
+                    <p className="stage-text">{result.stage || getCancerStage(result.confidence)}</p>
+                    <p className="stage-note">This stage is an illustrative estimate based on confidence and is not a medical diagnosis.</p>
+                  </div>
+                </div>
+              )}
+
               {/* Confidence Card */}
               <div className="result-card confidence-card">
                 <h3>Confidence Score</h3>
@@ -353,6 +379,7 @@ const UploadPage: React.FC = () => {
   </div>
 
 </div>
+
 
           </div>
         )}
