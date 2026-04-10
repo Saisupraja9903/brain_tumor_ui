@@ -7,19 +7,106 @@ interface AnalysisResult extends PredictionResponse {
   stage?: string;
 }
 
+interface MedicalGuidance {
+  status: string;
+  warning?: string;
+  points: string[];
+  hospital: string;
+  className: string;
+}
+
+const getGuidance = (prediction: string, stage?: string): MedicalGuidance => {
+  if (prediction !== 'tumor') {
+    return {
+      status: "No Tumor Detected (AI Based Screening)",
+      points: [
+        "No immediate abnormality detected.",
+        "Maintain regular health monitoring.",
+        "If symptoms like persistent headaches, vision changes, or dizziness occur, consult a physician."
+      ],
+      hospital: "Routine hospital consultation is sufficient unless symptoms develop.",
+      className: "safe-guide"
+    };
+  }
+
+  switch (stage) {
+    case 'Stage I':
+      return {
+        status: "Stage I (Preliminary AI Detection) - Low Grade",
+        points: [
+          "Low-grade or slowly developing tumor characteristics detected.",
+          "Consult a Neurologist or Neuro-oncologist for clinical validation.",
+          "Prepare for a follow-up MRI with contrast or further diagnostic testing."
+        ],
+        hospital: "Visit a specialized Neurology department for further screening.",
+        className: "tumor-guide stage-1"
+      };
+    case 'Stage II':
+      return {
+        status: "Stage II (Preliminary AI Detection) - Mid Grade",
+        points: [
+          "Mid-grade tumor characteristics detected, suggesting possible progression.",
+          "Prompt consultation with a Neurosurgeon or Oncologist is advised.",
+          "Treatment planning including possible biopsy or surgical options may be discussed."
+        ],
+        hospital: "Seek an appointment at a multi-specialty hospital with Neurology/Oncology.",
+        className: "tumor-guide stage-2"
+      };
+    case 'Stage III':
+      return {
+        status: "Stage III (Preliminary AI Detection) - High Grade",
+        warning: "⚠️ High probability of an aggressive tumor detected. Urgent medical consultation is recommended.",
+        points: [
+          "High-grade, potentially aggressive tumor characteristics detected.",
+          "Urgent consultation with a Neuro-oncology team is strongly recommended.",
+          "Immediate comprehensive diagnostic testing and treatment planning are necessary."
+        ],
+        hospital: "Visit a comprehensive cancer center or specialized neuro-care hospital promptly.",
+        className: "tumor-guide stage-3"
+      };
+    case 'Stage IV':
+      return {
+        status: "Stage IV (Preliminary AI Detection) - Severe",
+        warning: "⚠️ CRITICAL: Highly aggressive tumor characteristics detected. Immediate medical intervention is strongly recommended.",
+        points: [
+          "Severe, rapidly progressing tumor characteristics detected.",
+          "Immediate emergency medical attention and specialist intervention are required.",
+          "Consult a Neurosurgeon and Oncology specialist without delay.",
+          "Rapid intervention is critical for managing symptoms and comprehensive treatment."
+        ],
+        hospital: "Seek immediate medical care at an emergency department or specialized cancer center.",
+        className: "tumor-guide stage-4"
+      };
+    case 'Early / Indeterminate':
+    default:
+      return {
+        status: "Early / Indeterminate Stage (Preliminary AI Detection)",
+        points: [
+          "Possible early-stage abnormality or indeterminate characteristics detected.",
+          "Consult a Neurologist for a comprehensive clinical evaluation.",
+          "A follow-up MRI or CT scan may be recommended to clarify the findings."
+        ],
+        hospital: "Schedule a non-emergency appointment with a Neurologist.",
+        className: "tumor-guide stage-indeterminate"
+      };
+  }
+};
+
 const UploadPage: React.FC = () => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  
   const [result, setResult] = useState<AnalysisResult | null>(null);
+  const [showBrainOnlyPopup, setShowBrainOnlyPopup] = useState(false);
+  const [showBWOnlyPopup, setShowBWOnlyPopup] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<number>(0);
   const [analysisStep, setAnalysisStep] = useState<'idle' | 'uploading' | 'analyzing'>('idle');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0] || null;
-
     if (!file) return;
 
     // Validate size
@@ -36,18 +123,21 @@ const UploadPage: React.FC = () => {
       return;
     }
 
-    // Validate image by attempting to load it
-    const img = new Image();
-    img.onload = () => {
-      setSelectedFile(file);
-      setPreviewUrl(URL.createObjectURL(file));
-      setError(null);
-      setResult(null);
-    };
-    img.onerror = () => {
-      setError('Invalid image file. Please upload a valid image.');
-    };
-    img.src = URL.createObjectURL(file);
+    // Heuristic: Check filename for 'brain' keyword (case-insensitive)
+    // const lowerName = file.name.toLowerCase();
+    // if (!lowerName.includes('brain')) {
+    //   setShowBrainOnlyPopup(true);
+    //   setSelectedFile(null);
+    //   setPreviewUrl(null);
+    //   setError('Only brain images are allowed.');
+    //   return;
+    // }
+
+    // ✅ ACCEPT IMAGE DIRECTLY
+    setSelectedFile(file);
+    setPreviewUrl(URL.createObjectURL(file));
+    setError(null);
+    setResult(null);
   };
 
   const handleAnalyzeImage = async () => {
@@ -127,6 +217,21 @@ const UploadPage: React.FC = () => {
 
   return (
     <div className="upload-page">
+      {showBrainOnlyPopup && (
+        <div className="popup-overlay">
+          <div className="popup-content">
+            <h3>Upload Correct Brain Image</h3>
+            <p>
+              Only brain MRI images are allowed. Please upload a valid brain image.
+            </p>
+            <button onClick={() => setShowBrainOnlyPopup(false)} className="btn-close-popup">
+              OK
+            </button>
+          </div>
+        </div>
+      )}
+      {/* Popup for brain MRI only */}
+      {/* No brain filename popup needed anymore */}
       <div className="upload-container">
         <h1>Brain MRI Analysis</h1>
         <p className="subtitle">Upload an MRI scan image for instant brain tumor detection</p>
@@ -264,59 +369,74 @@ const UploadPage: React.FC = () => {
               )}
 
               {/* Confidence Card */}
-              <div className="result-card confidence-card">
-                <h3>Confidence Score</h3>
-                <div className="confidence-display">
-                  <div className="confidence-circle">
-                    <svg viewBox="0 0 100 100">
-                      <circle cx="50" cy="50" r="45" className="circle-bg" />
-                      <circle
-                        cx="50"
-                        cy="50"
-                        r="45"
-                        className="circle-progress"
-                        style={{
-                          strokeDasharray: `${2 * Math.PI * 45 * (result.confidence / 100)} ${2 * Math.PI * 45}`,
-                          stroke: getConfidenceColor(result.confidence),
-                        }}
-                      />
-                    </svg>
-                    <div className="confidence-value">
-                      {result.confidence.toFixed(1)}%
+              {result.prediction === 'tumor' && (
+                <div className="result-card confidence-card">
+                  <h3>Confidence Score</h3>
+                  <div className="confidence-display">
+                    <div className="confidence-circle">
+                      <svg viewBox="0 0 100 100">
+                        <circle cx="50" cy="50" r="45" className="circle-bg" />
+                        <circle
+                          cx="50"
+                          cy="50"
+                          r="45"
+                          className="circle-progress"
+                          style={{
+                            strokeDasharray: `${2 * Math.PI * 45 * (result.confidence / 100)} ${2 * Math.PI * 45}`,
+                            stroke: getConfidenceColor(result.confidence),
+                          }}
+                        />
+                      </svg>
+                      <div className="confidence-value">
+                        {result.confidence.toFixed(1)}%
+                      </div>
                     </div>
+                    <p className="risk-level">
+                      Risk Level: <strong>{getRiskLevel(result.confidence)}</strong>
+                    </p>
                   </div>
-                  <p className="risk-level">
-                    Risk Level: <strong>{getRiskLevel(result.confidence)}</strong>
-                  </p>
                 </div>
-              </div>
+              )}
             </div>
 
-            {/* Probability Details */}
+            {/* Probability Details - Show only the relevant bar */}
             <div className="result-details">
               <h3>Detailed Probabilities</h3>
               <div className="probability-list">
-                {Object.entries(result.probability).map(([label, prob]) => (
-                  <div key={label} className="probability-item">
+                {result.prediction === 'tumor' && result.probability.tumor !== undefined && (
+                  <div className="probability-item">
                     <div className="probability-label">
-                      <span className="label-name">
-                        {label === 'tumor' ? '🔴' : '🟢'} {label.charAt(0).toUpperCase() + label.slice(1)}
-                      </span>
-                      <span className="probability-value">
-                        {(prob * 100).toFixed(2)}%
-                      </span>
+                      <span className="label-name">🔴 Tumor</span>
+                      <span className="probability-value">{(result.probability.tumor * 100).toFixed(2)}%</span>
                     </div>
                     <div className="probability-bar">
                       <div
                         className="probability-fill"
                         style={{
-                          width: `${prob * 100}%`,
-                          backgroundColor: label === 'tumor' ? '#dc3545' : '#28a745',
+                          width: `${result.probability.tumor * 100}%`,
+                          backgroundColor: '#dc3545',
                         }}
                       ></div>
                     </div>
                   </div>
-                ))}
+                )}
+                {result.prediction !== 'tumor' && result.probability['no tumor'] !== undefined && (
+                  <div className="probability-item">
+                    <div className="probability-label">
+                      <span className="label-name">🟢 No Tumor</span>
+                      <span className="probability-value">{(result.probability['no tumor'] * 100).toFixed(2)}%</span>
+                    </div>
+                    <div className="probability-bar">
+                      <div
+                        className="probability-fill"
+                        style={{
+                          width: `${result.probability['no tumor'] * 100}%`,
+                          backgroundColor: '#28a745',
+                        }}
+                      ></div>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -333,52 +453,41 @@ const UploadPage: React.FC = () => {
               </button>
             </div>
             {/* ================= Medical Guidance Section ================= */}
-<div className="medical-guidance-section">
+{(() => {
+  const currentStage = result.stage || (result.prediction === 'tumor' ? getCancerStage(result.confidence) : undefined);
+  const guidance = getGuidance(result.prediction, currentStage);
+  
+  return (
+    <div className="medical-guidance-section">
+      {/* Emergency Warning */}
+      {guidance.warning && (
+        <div className="emergency-warning">
+          {guidance.warning}
+        </div>
+      )}
 
-  {/* Emergency Warning */}
-  {result.prediction === "tumor" && result.confidence >= 85 && (
-    <div className="emergency-warning">
-      ⚠️ High probability of tumor detected.
-      Immediate consultation with a specialist is strongly recommended.
+      <h3>Preliminary Medical Guidance</h3>
+
+      <div className={`guidance-box ${guidance.className}`}>
+        <p><strong>Status:</strong> {guidance.status}</p>
+        <ul>
+          {guidance.points.map((point, index) => (
+            <li key={index}>{point}</li>
+          ))}
+        </ul>
+        <p className="hospital-recommendation">
+          {guidance.hospital}
+        </p>
+      </div>
+
+      {/* Legal Disclaimer */}
+      <div className="legal-disclaimer">
+        ⚖️ This AI system provides preliminary screening only and is NOT a confirmed medical diagnosis.
+        Please consult a certified medical professional for clinical evaluation.
+      </div>
     </div>
-  )}
-
-  <h3>Preliminary Medical Guidance</h3>
-
-  {result.prediction === "tumor" ? (
-    <div className="guidance-box tumor-guide">
-      <p><strong>Detected Condition:</strong> Brain Tumor (Preliminary AI Detection)</p>
-      <ul>
-        <li>Consult a Neurologist or Neurosurgeon immediately.</li>
-        <li>Recommended: MRI with contrast, CT scan, or Biopsy (if advised).</li>
-        <li>Early diagnosis improves treatment outcomes.</li>
-        <li>Follow medical supervision strictly.</li>
-      </ul>
-      <p className="hospital-recommendation">
-        Visit a multi-specialty hospital with Neurology or Oncology department.
-      </p>
-    </div>
-  ) : (
-    <div className="guidance-box safe-guide">
-      <p><strong>Status:</strong> No Tumor Detected (AI Based Screening)</p>
-      <ul>
-        <li>No immediate abnormality detected.</li>
-        <li>Maintain regular health monitoring.</li>
-        <li>If symptoms persist, consult a Neurologist.</li>
-      </ul>
-      <p className="hospital-recommendation">
-        Routine hospital consultation is sufficient unless symptoms worsen.
-      </p>
-    </div>
-  )}
-
-  {/* Legal Disclaimer */}
-  <div className="legal-disclaimer">
-    ⚖️ This AI system provides preliminary screening only and is NOT a confirmed medical diagnosis.
-    Please consult a certified medical professional for clinical evaluation.
-  </div>
-
-</div>
+  );
+})()}
 
 
           </div>

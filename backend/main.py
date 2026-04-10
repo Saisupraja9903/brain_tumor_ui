@@ -6,6 +6,7 @@ from typing import Optional
 from fastapi import FastAPI, File, UploadFile, HTTPException, status, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from ultralytics import YOLO
 import aiofiles
 
 # Register image formats with PIL/Pillow
@@ -50,6 +51,12 @@ logging.basicConfig(
     ]
 )
 logger = logging.getLogger(__name__)
+
+if os.path.exists("brain_classifier.pt"):
+    brain_model = YOLO("brain_classifier.pt")  # your trained model
+else:
+    logger.warning("brain_classifier.pt not found! Falling back to ImageProcessor basic validation.")
+    brain_model = None
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -322,6 +329,29 @@ async def analyze_image(file: UploadFile = File(...)) -> PredictionResponse:
         # Make prediction
         logger.info(f"[{request_id}] Analyzing image: {stored_filename}")
         predictor = Predictor()
+
+        if brain_model:
+            # ✅ YOLO VALIDATION
+            results = brain_model(file_path)
+            label = results[0].names[results[0].probs.top1]
+            confidence = float(results[0].probs.top1conf)
+
+            # ❌ BLOCK NON-BRAIN
+            if label != "brain" or confidence < 0.7:
+                os.remove(file_path)
+                raise HTTPException(
+                    status_code=400,
+                    detail="Only brain MRI images are allowed."
+                )
+        else:
+            # ✅ FALLBACK VALIDATION
+            if not ImageProcessor.is_brain_mri(file_path):
+                os.remove(file_path)
+                raise HTTPException(
+                    status_code=400,
+                    detail="Only brain MRI images are allowed."
+                )
+
         result = predictor.predict(file_path)
         
         logger.info(f"[{request_id}] Analysis completed: {result['prediction']} ({result['confidence']:.2f}%)")
