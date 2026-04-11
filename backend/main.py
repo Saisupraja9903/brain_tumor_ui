@@ -8,6 +8,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from ultralytics import YOLO
 import aiofiles
+import cv2
+import numpy as np
 
 # Register image formats with PIL/Pillow
 try:
@@ -52,10 +54,18 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-if os.path.exists("brain_classifier.pt"):
-    brain_model = YOLO("brain_classifier.pt")  # your trained model
+yolo_path = settings.get_absolute_yolo_model_path()
+fallback_yolo_path = os.path.join(settings.base_dir, "brain_classifier.pt")
+
+if os.path.exists(yolo_path):
+    brain_model = YOLO(yolo_path)
+    logger.info(f"YOLO validation model loaded successfully from {yolo_path}")
+elif os.path.exists(fallback_yolo_path):
+    brain_model = YOLO(fallback_yolo_path)
+    logger.info(f"YOLO validation model loaded successfully from fallback path: {fallback_yolo_path}")
 else:
-    logger.warning("brain_classifier.pt not found! Falling back to ImageProcessor basic validation.")
+    logger.warning(f"YOLO model not found at {yolo_path} or {fallback_yolo_path}! "
+                   "YOLO validation will be disabled. Will use PIL fallback validation only.")
     brain_model = None
 
 # Initialize FastAPI app
@@ -326,32 +336,98 @@ async def analyze_image(file: UploadFile = File(...)) -> PredictionResponse:
         async with aiofiles.open(file_path, 'wb') as f:
             await f.write(contents)
 
-        # Make prediction
         logger.info(f"[{request_id}] Analyzing image: {stored_filename}")
-        predictor = Predictor()
 
-        if brain_model:
-            # ✅ YOLO VALIDATION
-            results = brain_model(file_path)
-            label = results[0].names[results[0].probs.top1]
-            confidence = float(results[0].probs.top1conf)
+        # 1. Face Detection (Reject immediately if human face)
+        face_detected = False
+        try:
+            # Safely load OpenCV haarcascade (checks system library then local path)
+            cascade_path = cv2.data.haarcascades + 'haarcascade_frontalface_default.xml'
+            face_cascade = cv2.CascadeClassifier(cascade_path)
+            if face_cascade.empty():
+                face_cascade = cv2.CascadeClassifier('haarcascade_frontalface_default.xml')
+                
+            img_cv = cv2.imread(file_path, cv2.IMREAD_GRAYSCALE)
+            if img_cv is not None and not face_cascade.empty():
+                faces = face_cascade.detectMultiScale(img_cv, scaleFactor=1.1, minNeighbors=5, minSize=(30, 30))
+                if len(faces) > 0:
+                    face_detected = True
+        except Exception as e:
+            logger.warning(f"[{request_id}] Face detection error: {str(e)}")
 
-            # ❌ BLOCK NON-BRAIN
-            if label != "brain" or confidence < 0.7:
+        logger.debug(f"[{request_id}] Face detected: {face_detected}")
+
+        if face_detected:
+            if os.path.exists(file_path):
                 os.remove(file_path)
-                raise HTTPException(
-                    status_code=400,
-                    detail="Only brain MRI images are allowed."
-                )
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Please upload MRI scan, not a brain image"
+            )
+
+        # 2. YOLO validation (label + confidence)
+        is_brain_yolo = False
+        if brain_model is not None:
+            try:
+                results = brain_model(file_path)
+                label_index = int(results[0].probs.top1)
+                label = results[0].names[label_index]
+                confidence = float(results[0].probs.top1conf)
+                
+                logger.debug(f"[{request_id}] YOLO Predicted Label: {label}")
+                logger.debug(f"[{request_id}] YOLO Confidence Score: {confidence:.4f}")
+
+                # Fast rejection for explicitly bad non-MRI labels
+                if any(bad in label.lower() for bad in ["person", "face", "object", "unknown"]):
+                    if os.path.exists(file_path):
+                        os.remove(file_path)
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail="Only brain MRI images are allowed"
+                    )
+                
+                # Accept if confidently classified as brain
+                if label == "brain" and confidence >= 0.75:
+                    is_brain_yolo = True
+                    
+            except HTTPException:
+                raise
+            except Exception as e:
+                logger.error(f"[{request_id}] YOLO validation error: {str(e)}")
         else:
-            # ✅ FALLBACK VALIDATION
-            if not ImageProcessor.is_brain_mri(file_path):
-                os.remove(file_path)
-                raise HTTPException(
-                    status_code=400,
-                    detail="Only brain MRI images are allowed."
-                )
+            logger.info(f"[{request_id}] YOLO model unavailable, skipping YOLO validation.")
 
+        # 3. MRI grayscale structure validation (PIL + numpy)
+        is_mri_structure = False
+        try:
+            with Image.open(file_path) as img:
+                img_gray = img.convert('L')
+                width, height = img.size
+                aspect_ratio = width / height
+                
+                arr = np.array(img_gray)
+                std_dev = np.std(arr)
+                
+            logger.debug(f"[{request_id}] MRI Structure Check - Std Dev: {std_dev:.2f}, Aspect Ratio: {aspect_ratio:.2f}")
+            
+            if (5 <= std_dev <= 80) and (0.5 <= aspect_ratio <= 1.5):
+                is_mri_structure = True
+        except Exception as e:
+            logger.error(f"[{request_id}] MRI structure validation error: {str(e)}")
+
+        logger.debug(f"[{request_id}] Validation Results -> YOLO: {is_brain_yolo}, MRI Structure: {is_mri_structure}")
+
+        # 4. Hybrid Validation Logic
+        if not (is_brain_yolo or is_mri_structure):
+            if os.path.exists(file_path):
+                os.remove(file_path)
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid MRI scan. Please upload a proper brain MRI image."
+            )
+
+        # 5. Then tumor prediction
+        predictor = Predictor()
         result = predictor.predict(file_path)
         
         logger.info(f"[{request_id}] Analysis completed: {result['prediction']} ({result['confidence']:.2f}%)")

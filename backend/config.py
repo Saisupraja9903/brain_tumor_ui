@@ -19,6 +19,7 @@ class Settings(BaseSettings):
     # Model Configuration
     model_path: str = os.getenv("MODEL_PATH", "../models/cnn-parameters-improvement-23-0.91.model")
     model_type: str = os.getenv("MODEL_TYPE", "h5")
+    yolo_model_path: str = os.getenv("YOLO_MODEL_PATH", "backend/brain_classifier.pt")
     
     # File Upload Configuration
     max_file_size_mb: int = int(os.getenv("MAX_FILE_SIZE_MB", 10))
@@ -48,6 +49,12 @@ class Settings(BaseSettings):
         if os.path.isabs(self.model_path):
             return self.model_path
         return os.path.join(self.base_dir, self.model_path)
+
+    def get_absolute_yolo_model_path(self) -> str:
+        """Get absolute path to the YOLO model file."""
+        if os.path.isabs(self.yolo_model_path):
+            return self.yolo_model_path
+        return os.path.join(self.base_dir, self.yolo_model_path)
 
     def get_allowed_extensions(self) -> list:
         """Return allowed extensions as a normalized list."""
